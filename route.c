@@ -64,7 +64,7 @@ static void printPath(int parent[GRID_WIDTH][GRID_HEIGHT][2], int x, int y) {
     printf("-> (%d, %d) ", x, y);
 }
 
-int aStar(const int start_x, const int start_y, int end_x, int end_y, int rows, int cols) {
+PathResult aStar(int start_x, int start_y, int end_x, int end_y, int rows, int cols, int exclude_x, int exclude_y) {
     int dist[GRID_WIDTH][GRID_HEIGHT];
     int parent[GRID_WIDTH][GRID_HEIGHT][2];
     for (int i = 0; i < rows; i++) {
@@ -89,19 +89,48 @@ int aStar(const int start_x, const int start_y, int end_x, int end_y, int rows, 
             // printf("Shortest path: ");
             // printPath(parent, x, y);
             // printf("\n");
-            return dist[x][y];
-        }
+            int curr_x = x;
+            int curr_y = y;
+            int path_length = 0;
+            int path_x[GRID_WIDTH * GRID_HEIGHT];
+            int path_y[GRID_WIDTH * GRID_HEIGHT];
 
+            while (!(curr_x == start_x && curr_y == start_y)) {
+                path_x[path_length] = curr_x;
+                path_y[path_length] = curr_y;
+                path_length++;
+                int temp_x = parent[curr_x][curr_y][0];
+                int temp_y = parent[curr_x][curr_y][1];
+                curr_x = temp_x;
+                curr_y = temp_y;
+            }
+
+            PathResult result;
+            result.path_length = dist[x][y];
+            result.next_x = path_x[path_length - 1];
+            result.next_y = path_y[path_length - 1];
+            return result;
+        }
         for (int i = 0; i < grid[x][y].edgeCount; i++) {
             Edge edge = grid[x][y].edges[i];
+            int edge_x = edge.x;
+            int edge_y = edge.y;
+
+            // Skip if the node is occupied or is the excluded node
+            if (grid[edge_x][edge_y].occupied == 1 || (exclude_x >= 0 && edge_x == exclude_x && edge_y == exclude_y)) {
+                continue;
+            }
+
             int newCost = dist[x][y] + edge.weight;
-            if (newCost < dist[edge.x][edge.y]) {
-                parent[edge.x][edge.y][0] = x; // Update parent
-                parent[edge.x][edge.y][1] = y;
-                dist[edge.x][edge.y] = newCost;
-                push(&pq, edge.x, edge.y, newCost, newCost + heuristic(edge.x, edge.y, end_x, end_y));
+            if (newCost < dist[edge_x][edge_y]) {
+                parent[edge_x][edge_y][0] = x; // Update parent
+                parent[edge_x][edge_y][1] = y;
+                dist[edge_x][edge_y] = newCost;
+                push(&pq, edge_x, edge_y, newCost, newCost + heuristic(edge_x, edge_y, end_x, end_y));
             }
         }
     }
-    return -1; // No path found
+    PathResult result;
+    result.path_length = -1; // No path found
+    return result;
 }

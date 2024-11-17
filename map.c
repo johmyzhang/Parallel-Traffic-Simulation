@@ -1,15 +1,18 @@
+// map.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include "entity.h"
 #include "route.h"
 
-#define NUM_VEHICLES 1000
+#define NUM_VEHICLES 200
 
 Node grid[GRID_WIDTH][GRID_HEIGHT];
 Vehicle vehicles[NUM_VEHICLES];
+int activeVehicles[NUM_VEHICLES]; // Queue to track active vehicles
+int vehicleCount = NUM_VEHICLES;
 
-// Function to create vehicles
+// Function to create vehicles (unchanged)
 void initializeVehicles(Map *map) {
     srand(time(NULL));
     for (int i = 0; i < NUM_VEHICLES; i++) {
@@ -19,7 +22,8 @@ void initializeVehicles(Map *map) {
         do {
             vehicles[i].current.x = rand() % GRID_WIDTH;
             vehicles[i].current.y = rand() % GRID_HEIGHT;
-        } while (grid[vehicles[i].current.x][vehicles[i].current.y].edgeCount == 0);
+        } while (grid[vehicles[i].current.x][vehicles[i].current.y].edgeCount == 0 ||
+                 grid[vehicles[i].current.x][vehicles[i].current.y].occupied == 1);
 
         // Ensure destination is also randomly chosen but different from the starting point
         do {
@@ -28,6 +32,12 @@ void initializeVehicles(Map *map) {
         } while ((vehicles[i].destination.x == vehicles[i].current.x && vehicles[i].destination.y == vehicles[i].current.y) ||
                  grid[vehicles[i].destination.x][vehicles[i].destination.y].edgeCount == 0);
 
+        // Initialize active vehicle queue
+        activeVehicles[i] = 1;
+
+        // Mark the starting position as occupied
+        grid[vehicles[i].current.x][vehicles[i].current.y].occupied = 1;
+
         // Print initial vehicle information
         printf("Vehicle %d starts at (%d, %d) and wants to reach (%d, %d)\n",
                vehicles[i].id, vehicles[i].current.x, vehicles[i].current.y,
@@ -35,7 +45,7 @@ void initializeVehicles(Map *map) {
     }
 }
 
-// Revised function to add edges between nodes
+// Function to add edges between nodes (unchanged)
 void addEdge(Node *node, int x, int y, int weight) {
     if (node->edgeCount < 4) {
         node->edges[node->edgeCount] = (Edge){x, y, weight};
@@ -43,11 +53,13 @@ void addEdge(Node *node, int x, int y, int weight) {
     }
 }
 
+// Function to initialize the grid (unchanged)
 void initializeGrid(Map *map) {
     // Initialize grid with empty nodes
     for (int i = 0; i < GRID_WIDTH; i++) {
         for (int j = 0; j < GRID_HEIGHT; j++) {
             grid[i][j].edgeCount = 0;
+            grid[i][j].occupied = 0; // Initialize all nodes as unoccupied
         }
     }
 
@@ -61,11 +73,10 @@ void initializeGrid(Map *map) {
         // If the road is vertical
         if (x_start == x_end) {
             for (int y = y_start; y <= y_end; y++) {
+                // Add bidirectional edges between consecutive nodes along the road
                 if (y + 1 <= y_end) {
                     addEdge(&grid[x_start][y], x_start, y + 1, 1); // Downward edge
-                }
-                if (y - 1 >= y_start) {
-                    addEdge(&grid[x_start][y], x_start, y - 1, 1); // Upward edge
+                    addEdge(&grid[x_start][y + 1], x_start, y, 1); // Upward edge (bidirectional)
                 }
             }
         }
@@ -73,11 +84,10 @@ void initializeGrid(Map *map) {
         // If the road is horizontal
         if (y_start == y_end) {
             for (int x = x_start; x <= x_end; x++) {
+                // Add bidirectional edges between consecutive nodes along the road
                 if (x + 1 <= x_end) {
                     addEdge(&grid[x][y_start], x + 1, y_start, 1); // Rightward edge
-                }
-                if (x - 1 >= x_start) {
-                    addEdge(&grid[x][y_start], x - 1, y_start, 1); // Leftward edge
+                    addEdge(&grid[x + 1][y_start], x, y_start, 1); // Leftward edge (bidirectional)
                 }
             }
         }
@@ -86,9 +96,13 @@ void initializeGrid(Map *map) {
 
 int main() {
     Map map;
+    FILE *logFile = fopen("vehicle_log.txt", "w");
+    if (logFile == NULL) {
+        printf("Error opening log file!\n");
+        return 1;
+    }
 
     initMap(&map);
-
     printMap(&map);
 
     // Initialize grid
@@ -97,49 +111,114 @@ int main() {
     // Initialize vehicles
     initializeVehicles(&map);
 
-    // int sp = aStar(32, 97, 33, 33, 100, 100);
-    // printf("%d\n", sp);
-    //
     // Simulation loop
     int step = 0;
-    int vehicleCount = NUM_VEHICLES;
-    while (vehicleCount > 0) {
-        printf("\nTime step %d\n", step);
+    int maxSteps = 1000; // Maximum number of steps to prevent infinite loops
+    int waitingTime[NUM_VEHICLES] = {0}; // Array to keep track of waiting time for each vehicle
+    int DEADLOCK_THRESHOLD = 5; // Threshold for deadlock detection
+
+    while (vehicleCount > 0 && step < maxSteps) {
+        int movedInStep = 0;
 
         for (int i = 0; i < NUM_VEHICLES; i++) {
-            Vehicle *v = &vehicles[i];
-            if (v->current.x == v->destination.x && v->current.y == v->destination.y) {
-                // Reach destination
-                // printf("Vehicle %d has reached its destination (%d, %d)\n",
-                //        v->id, v->destination.x, v->destination.y);
+            if (!activeVehicles[i]) {
+                continue;
+            }
 
+            Vehicle *v = &vehicles[i];
+
+            // Check if the vehicle has reached its destination
+            if (v->current.x == v->destination.x && v->current.y == v->destination.y) {
+                fprintf(logFile, "Step %d: Vehicle %d has reached its destination at (%d, %d)\n",
+                        step, v->id, v->destination.x, v->destination.y);
+                activeVehicles[i] = 0;
+                vehicleCount--;
+                grid[v->current.x][v->current.y].occupied = 0;
                 continue;
             }
 
             // Find the shortest path using A*
-            int shortest_path_length = aStar(v->current.x, v->current.y,
-                                           v->destination.x, v->destination.y,
-                                           GRID_WIDTH, GRID_HEIGHT);
+            PathResult pathResult = aStar(v->current.x, v->current.y, v->destination.x, v->destination.y,
+                                          GRID_WIDTH, GRID_HEIGHT, -1, -1);
 
-            // Move the vehicle if a path is found
-            if (shortest_path_length != -1 && grid[v->current.x][v->current.y].edgeCount > 0) {
-                // Attempt to follow the shortest path by selecting the edge that moves closer to the destination
-                for (int j = 0; j < grid[v->current.x][v->current.y].edgeCount; j++) {
-                    Edge next_edge = grid[v->current.x][v->current.y].edges[j];
-                    if ((abs(next_edge.x - v->destination.x) + abs(next_edge.y - v->destination.y)) <
-                        (abs(v->current.x - v->destination.x) + abs(v->current.y - v->destination.y))) {
-                        v->current.x = next_edge.x;
-                        v->current.y = next_edge.y;
-                        printf("Vehicle %d moved to (%d, %d)\n", v->id, v->current.x, v->current.y);
-                        break;
+            if (pathResult.path_length != -1) {
+                int next_x = pathResult.next_x;
+                int next_y = pathResult.next_y;
+
+                if (grid[next_x][next_y].occupied == 0) {
+                    // Move the vehicle
+                    grid[v->current.x][v->current.y].occupied = 0;
+                    v->current.x = next_x;
+                    v->current.y = next_y;
+                    grid[next_x][next_y].occupied = 1;
+                    movedInStep = 1;
+                    waitingTime[i] = 0; // Reset waiting time since the vehicle moved
+                } else {
+                    // The next node is occupied
+                    waitingTime[i]++;
+
+                    // Check if waiting time exceeds DEADLOCK_THRESHOLD
+                    if (waitingTime[i] > DEADLOCK_THRESHOLD) {
+                        // Try to find an alternative path that avoids the blocked node
+                        PathResult newPathResult = aStar(v->current.x, v->current.y, v->destination.x, v->destination.y,
+                                                         GRID_WIDTH, GRID_HEIGHT, next_x, next_y);
+
+                        if (newPathResult.path_length != -1 && !(newPathResult.next_x == next_x && newPathResult.next_y == next_y)) {
+                            // Found an alternative path
+                            next_x = newPathResult.next_x;
+                            next_y = newPathResult.next_y;
+
+                            if (grid[next_x][next_y].occupied == 0) {
+                                // Move the vehicle
+                                grid[v->current.x][v->current.y].occupied = 0;
+                                v->current.x = next_x;
+                                v->current.y = next_y;
+                                grid[next_x][next_y].occupied = 1;
+                                movedInStep = 1;
+                                waitingTime[i] = 0; // Reset waiting time
+                            } else {
+                                // Cannot move, wait
+                                fprintf(logFile, "Step %d: Vehicle %d cannot move to (%d, %d), occupied after rerouting\n",
+                                        step, v->id, next_x, next_y);
+                            }
+                        } else {
+                            // Cannot find alternative path, wait
+                            fprintf(logFile, "Step %d: Vehicle %d cannot find alternative path after rerouting\n", step, v->id);
+                        }
+                    } else {
+                        // Wait and try again in the next time step
+                        fprintf(logFile, "Step %d: Vehicle %d is waiting at (%d, %d)\n",
+                                step, v->id, v->current.x, v->current.y);
                     }
                 }
             } else {
-                printf("Vehicle %d could not find a path to (%d, %d)\n",
-                       v->id, v->destination.x, v->destination.y);
+                // No path found, possibly because all routes are blocked
+                fprintf(logFile, "Step %d: Vehicle %d could not find a path to (%d, %d)\n",
+                        step, v->id, v->destination.x, v->destination.y);
+                waitingTime[i]++;
             }
         }
+        static int noMoveCounter = 0;
+        if (movedInStep == 0) {
+            fprintf(logFile, "No vehicles moved in time step %d. Continuing simulation.\n", step);
+            // If no vehicles have moved for several steps, we might decide to end the simulation
+            
+            noMoveCounter++;
+            if (noMoveCounter > DEADLOCK_THRESHOLD * 2) {
+                fprintf(logFile, "No vehicles have moved for %d consecutive steps. Ending simulation.\n", noMoveCounter);
+                break;
+            }
+        } else {
+            noMoveCounter = 0; // Reset the counter since at least one vehicle moved
+        }
+
+        step++;
     }
 
+    if (step >= maxSteps) {
+        fprintf(logFile, "Maximum number of steps reached. Ending simulation.\n");
+    }
+
+    fclose(logFile);
     return 0;
 }

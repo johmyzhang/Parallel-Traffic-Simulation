@@ -2,17 +2,12 @@
 // Created by Johnny on 11/13/24.
 //
 
+#include "entity.h"
+
 #ifndef ROUTE_H
 #define ROUTE_H
 
-typedef struct {
-    int x, y, weight;
-} Edge;
 
-typedef struct {
-    Edge edges[4]; // Maximum 4 neighbors (up, down, left, right)
-    int edgeCount;
-} Node;
 
 typedef struct {
     int x, y, cost, priority;
@@ -23,18 +18,14 @@ typedef struct {
     int size;
 } PriorityQueue;
 
-static void initializePriorityQueue(PriorityQueue* pq);
 
-static void push(PriorityQueue* pq, int x, int y, int cost, int priority);
+typedef struct {
+    int path_length;
+    int next_x;
+    int next_y;
+} PathResult;
 
-static PriorityQueueNode pop(PriorityQueue* pq);
+PathResult aStar(int start_x, int start_y, int end_x, int end_y, int rows, int cols, int exclude_x, int exclude_y);
 
-static int isEmpty(PriorityQueue* pq);
 
-static int heuristic(int x1,  int y1,  int x2,  int y2);
-
-static void printPath(int parent[GRID_WIDTH][GRID_HEIGHT][2], int x, int y);
-
-int aStar( int start_x,  int start_y, int end_x, int end_y, int rows, int cols);
-
-#endif
+#endif //ROUTE_H

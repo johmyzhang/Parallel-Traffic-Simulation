@@ -3,6 +3,9 @@
 
 #include "globals.h"
 
+
+#define GRID_WIDTH 100
+#define GRID_HEIGHT 100
 // Maps represented by a 2-D grid.
 
 typedef struct {
@@ -37,6 +40,18 @@ typedef struct {
     Location destination;
     Location* route;
 } Vehicle;
+
+typedef struct {
+    int x;
+    int y;
+    int weight;
+} Edge;
+
+typedef struct {
+    Edge edges[4];
+    int edgeCount;
+    int occupied; 
+} Node;
 
 void initRoad(Road *road, int id, int beginX, int endX, int beginY, int endY, int capacity, int directed);
 
