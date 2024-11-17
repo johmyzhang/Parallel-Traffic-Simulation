@@ -86,9 +86,9 @@ int aStar(const int start_x, const int start_y, int end_x, int end_y, int rows, 
         int x = current.x, y = current.y;
 
         if (x == end_x && y == end_y) {
-            printf("Shortest path: ");
-            printPath(parent, x, y);
-            printf("\n");
+            // printf("Shortest path: ");
+            // printPath(parent, x, y);
+            // printf("\n");
             return dist[x][y];
         }
 

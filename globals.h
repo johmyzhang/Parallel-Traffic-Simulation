@@ -8,8 +8,8 @@
 #define MAX_ROADS 100
 #define MAX_LOCATIONS 100
 
-#define GRID_WIDTH 10
-#define GRID_HEIGHT 10
+#define GRID_WIDTH 100
+#define GRID_HEIGHT 100
 
 #define INF INT_MAX
 #endif //GLOBALS_H

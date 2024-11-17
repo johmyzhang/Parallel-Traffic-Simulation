@@ -4,7 +4,7 @@
 #include "entity.h"
 #include "route.h"
 
-#define NUM_VEHICLES 5
+#define NUM_VEHICLES 1000
 
 Node grid[GRID_WIDTH][GRID_HEIGHT];
 Vehicle vehicles[NUM_VEHICLES];
@@ -85,14 +85,10 @@ void initializeGrid(Map *map) {
 }
 
 int main() {
-    const int roads[4][4] = {{4, 4, 0, 9}, {0, 9, 4, 4}, {2, 2, 2, 8}, {2, 8, 2, 2}};
     Map map;
+
     initMap(&map);
-    for (int i = 0; i < 4; i++) {
-        Road road;
-        initRoad(&road, i, roads[i][0], roads[i][1], roads[i][2], roads[i][3], 100, 0);
-        addRoad(&map, &road);
-    }
+
     printMap(&map);
 
     // Initialize grid
@@ -101,21 +97,28 @@ int main() {
     // Initialize vehicles
     initializeVehicles(&map);
 
+    // int sp = aStar(32, 97, 33, 33, 100, 100);
+    // printf("%d\n", sp);
+    //
     // Simulation loop
-    for (int step = 0; step < 10; step++) {
+    int step = 0;
+    int vehicleCount = NUM_VEHICLES;
+    while (vehicleCount > 0) {
         printf("\nTime step %d\n", step);
 
         for (int i = 0; i < NUM_VEHICLES; i++) {
             Vehicle *v = &vehicles[i];
             if (v->current.x == v->destination.x && v->current.y == v->destination.y) {
-                printf("Vehicle %d has reached its destination (%d, %d)\n",
-                       v->id, v->destination.x, v->destination.y);
+                // Reach destination
+                // printf("Vehicle %d has reached its destination (%d, %d)\n",
+                //        v->id, v->destination.x, v->destination.y);
+
                 continue;
             }
 
             // Find the shortest path using A*
-            int shortest_path_length = aStar(v->current.x, v->current.y, 
-                                           v->destination.x, v->destination.y, 
+            int shortest_path_length = aStar(v->current.x, v->current.y,
+                                           v->destination.x, v->destination.y,
                                            GRID_WIDTH, GRID_HEIGHT);
 
             // Move the vehicle if a path is found
@@ -123,7 +126,7 @@ int main() {
                 // Attempt to follow the shortest path by selecting the edge that moves closer to the destination
                 for (int j = 0; j < grid[v->current.x][v->current.y].edgeCount; j++) {
                     Edge next_edge = grid[v->current.x][v->current.y].edges[j];
-                    if ((abs(next_edge.x - v->destination.x) + abs(next_edge.y - v->destination.y)) < 
+                    if ((abs(next_edge.x - v->destination.x) + abs(next_edge.y - v->destination.y)) <
                         (abs(v->current.x - v->destination.x) + abs(v->current.y - v->destination.y))) {
                         v->current.x = next_edge.x;
                         v->current.y = next_edge.y;
