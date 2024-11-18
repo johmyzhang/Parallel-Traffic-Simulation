@@ -11,28 +11,25 @@
 
 Node grid[GRID_WIDTH][GRID_HEIGHT];
 Vehicle vehicles[NUM_VEHICLES];
-int activeVehicles[NUM_VEHICLES]; // Queue to track active vehicles
 int vehicleCount = NUM_VEHICLES;
 
 // Function to create vehicles (unchanged)
-void initializeVehicles(Map *map) {
+void initializeVehicles() {
     srand(time(NULL));
     for (int i = 0; i < NUM_VEHICLES; i++) {
         vehicles[i].id = i;
 
         // Ensure vehicles are placed randomly on the grid within valid road areas
         do {
-            vehicles[i].current.x = rand() % GRID_WIDTH;
-            vehicles[i].current.y = rand() % GRID_HEIGHT;
-        } while (grid[vehicles[i].current.x][vehicles[i].current.y].edgeCount == 0 ||
-                 grid[vehicles[i].current.x][vehicles[i].current.y].volume > grid[vehicles[i].current.x][vehicles[i].current.y].capacity);
+            vehicles[i].current.x = rand() % 30;
+            vehicles[i].current.y = rand() % 30;
+        } while (grid[vehicles[i].current.x][vehicles[i].current.y].edgeCount == 0);
 
         // Ensure destination is also randomly chosen but different from the starting point
         do {
             vehicles[i].destination.x = rand() % GRID_WIDTH;
             vehicles[i].destination.y = rand() % GRID_HEIGHT;
-        } while ((vehicles[i].destination.x == vehicles[i].current.x && vehicles[i].destination.y == vehicles[i].current.y) ||
-                 grid[vehicles[i].destination.x][vehicles[i].destination.y].edgeCount == 0);
+        } while (vehicles[i].destination.x == vehicles[i].current.x && vehicles[i].destination.y == vehicles[i].current.y);
 
         // Initialize active vehicle queue
         vehicles[i].activate = 1;
@@ -62,7 +59,7 @@ void initializeGrid(Map *map) {
         for (int j = 0; j < GRID_HEIGHT; j++) {
             grid[i][j].edgeCount = 0;
             grid[i][j].volume = 0; // Initialize all nodes as unoccupied
-            grid[i][j].capacity = 10;
+            grid[i][j].capacity = 1;
         }
     }
 
