@@ -39,6 +39,7 @@ typedef struct {
     Location current;
     Location destination;
     Location* route;
+    int activate;
 } Vehicle;
 
 typedef struct {
@@ -50,7 +51,8 @@ typedef struct {
 typedef struct {
     Edge edges[4];
     int edgeCount;
-    int occupied; 
+    int volume;
+    int capacity;
 } Node;
 
 void initRoad(Road *road, int id, int beginX, int endX, int beginY, int endY, int capacity, int directed);

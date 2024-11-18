@@ -2,10 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <_string.h>
+
 #include "entity.h"
 #include "route.h"
 
-#define NUM_VEHICLES 200
+#define NUM_VEHICLES 1000
 
 Node grid[GRID_WIDTH][GRID_HEIGHT];
 Vehicle vehicles[NUM_VEHICLES];
@@ -23,7 +25,7 @@ void initializeVehicles(Map *map) {
             vehicles[i].current.x = rand() % GRID_WIDTH;
             vehicles[i].current.y = rand() % GRID_HEIGHT;
         } while (grid[vehicles[i].current.x][vehicles[i].current.y].edgeCount == 0 ||
-                 grid[vehicles[i].current.x][vehicles[i].current.y].occupied == 1);
+                 grid[vehicles[i].current.x][vehicles[i].current.y].volume > grid[vehicles[i].current.x][vehicles[i].current.y].capacity);
 
         // Ensure destination is also randomly chosen but different from the starting point
         do {
@@ -33,10 +35,10 @@ void initializeVehicles(Map *map) {
                  grid[vehicles[i].destination.x][vehicles[i].destination.y].edgeCount == 0);
 
         // Initialize active vehicle queue
-        activeVehicles[i] = 1;
+        vehicles[i].activate = 1;
 
-        // Mark the starting position as occupied
-        grid[vehicles[i].current.x][vehicles[i].current.y].occupied = 1;
+        // Increase the volume of the node
+        grid[vehicles[i].current.x][vehicles[i].current.y].volume++;
 
         // Print initial vehicle information
         printf("Vehicle %d starts at (%d, %d) and wants to reach (%d, %d)\n",
@@ -59,7 +61,8 @@ void initializeGrid(Map *map) {
     for (int i = 0; i < GRID_WIDTH; i++) {
         for (int j = 0; j < GRID_HEIGHT; j++) {
             grid[i][j].edgeCount = 0;
-            grid[i][j].occupied = 0; // Initialize all nodes as unoccupied
+            grid[i][j].volume = 0; // Initialize all nodes as unoccupied
+            grid[i][j].capacity = 10;
         }
     }
 
@@ -115,28 +118,27 @@ int main() {
     int step = 0;
     int maxSteps = 1000; // Maximum number of steps to prevent infinite loops
     int waitingTime[NUM_VEHICLES] = {0}; // Array to keep track of waiting time for each vehicle
-    int DEADLOCK_THRESHOLD = 5; // Threshold for deadlock detection
-
+    int DEADLOCK_THRESHOLD = 100; // Threshold for deadlock detection
     while (vehicleCount > 0 && step < maxSteps) {
         int movedInStep = 0;
+        // A snapshot for every step
+        Node tempGrid[GRID_WIDTH][GRID_HEIGHT];
+        memcpy(tempGrid, grid, sizeof(grid));
 
         for (int i = 0; i < NUM_VEHICLES; i++) {
-            if (!activeVehicles[i]) {
+            Vehicle *v = &vehicles[i];
+            if (v->activate == 0) {
                 continue;
             }
-
-            Vehicle *v = &vehicles[i];
-
             // Check if the vehicle has reached its destination
             if (v->current.x == v->destination.x && v->current.y == v->destination.y) {
                 fprintf(logFile, "Step %d: Vehicle %d has reached its destination at (%d, %d)\n",
                         step, v->id, v->destination.x, v->destination.y);
-                activeVehicles[i] = 0;
+                v->activate = 0;
                 vehicleCount--;
-                grid[v->current.x][v->current.y].occupied = 0;
+                tempGrid[v->current.x][v->current.y].volume--;
                 continue;
             }
-
             // Find the shortest path using A*
             PathResult pathResult = aStar(v->current.x, v->current.y, v->destination.x, v->destination.y,
                                           GRID_WIDTH, GRID_HEIGHT, -1, -1);
@@ -145,12 +147,12 @@ int main() {
                 int next_x = pathResult.next_x;
                 int next_y = pathResult.next_y;
 
-                if (grid[next_x][next_y].occupied == 0) {
+                if (grid[next_x][next_y].volume < grid[next_x][next_y].capacity) {
                     // Move the vehicle
-                    grid[v->current.x][v->current.y].occupied = 0;
+                    tempGrid[v->current.x][v->current.y].volume--;
                     v->current.x = next_x;
                     v->current.y = next_y;
-                    grid[next_x][next_y].occupied = 1;
+                    tempGrid[next_x][next_y].volume++;
                     movedInStep = 1;
                     waitingTime[i] = 0; // Reset waiting time since the vehicle moved
                 } else {
@@ -168,12 +170,12 @@ int main() {
                             next_x = newPathResult.next_x;
                             next_y = newPathResult.next_y;
 
-                            if (grid[next_x][next_y].occupied == 0) {
+                            if (grid[next_x][next_y].volume < grid[next_x][next_y].capacity) {
                                 // Move the vehicle
-                                grid[v->current.x][v->current.y].occupied = 0;
+                                tempGrid[v->current.x][v->current.y].volume--;
                                 v->current.x = next_x;
                                 v->current.y = next_y;
-                                grid[next_x][next_y].occupied = 1;
+                                tempGrid[next_x][next_y].volume++;
                                 movedInStep = 1;
                                 waitingTime[i] = 0; // Reset waiting time
                             } else {
@@ -211,7 +213,7 @@ int main() {
         } else {
             noMoveCounter = 0; // Reset the counter since at least one vehicle moved
         }
-
+        memcpy(grid, tempGrid, sizeof(grid));
         step++;
     }
 
