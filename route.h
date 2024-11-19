@@ -12,6 +12,7 @@ typedef struct {
 typedef struct {
     Edge edges[4]; // Maximum 4 neighbors (up, down, left, right)
     int edgeCount;
+    int volume;
 } Node;
 
 typedef struct {
@@ -31,10 +32,16 @@ static PriorityQueueNode pop(PriorityQueue* pq);
 
 static int isEmpty(PriorityQueue* pq);
 
-static int heuristic(int x1,  int y1,  int x2,  int y2);
+int heuristic(int x1,  int y1,  int x2,  int y2);
 
 static void printPath(int parent[GRID_WIDTH][GRID_HEIGHT][2], int x, int y);
 
-int aStar( int start_x,  int start_y, int end_x, int end_y, int rows, int cols);
+int aStar(int start_x,  int start_y, int end_x, int end_y);
+
+void initializeGrid(const Map *map);
+
+void addEdge(Node *node, int x, int y, int weight);
+
+void initializeVehicles(Vehicle *vehicles);
 
 #endif
