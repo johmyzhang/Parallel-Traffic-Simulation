@@ -74,7 +74,7 @@ bool isVehicleQueueEmpty(VehicleQueue* queue);
 
 void enqueue(VehicleQueue* queue, Vehicle vehicle);
 
-void dequeue(VehicleQueue* queue);
+int dequeue(VehicleQueue* queue);
 
 Vehicle peek(VehicleQueue* queue);
 

@@ -221,20 +221,22 @@ void enqueue(VehicleQueue* queue, Vehicle vehicle) {
     queue->size++;
 }
 
-void dequeue(VehicleQueue* queue) {
+int dequeue(VehicleQueue* queue) {
     assert(queue);
     assert(!isVehicleQueueEmpty(queue));
-
+    const int vid = peek(queue).id;
     if (queue->head == queue->tail) {
         free(queue->head);
         queue->head = queue->tail = NULL;
     } else {
-        VehicleNode *node = queue->head->next;
+        VehicleNode *newNode = queue->head->next;
         free(queue->head);
-        queue->head = node;
+        queue->head = newNode;
     }
 
     --queue->size;
+
+    return vid;
 }
 
 Vehicle peek(VehicleQueue* queue) {
