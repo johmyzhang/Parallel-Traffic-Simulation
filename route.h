@@ -37,6 +37,17 @@ typedef struct {
     int size;
 } PriorityQueue;
 
+typedef struct {
+    int size;
+    Location* locations;
+} Route;
+
+typedef struct {
+    Route route;
+    int pathTaken;
+    int cost;
+} RoutingResult;
+
 static void initializePriorityQueue(PriorityQueue* pq);
 
 static void push(PriorityQueue* pq, int x, int y, int cost, int priority);
@@ -47,9 +58,9 @@ static int isEmpty(PriorityQueue* pq);
 
 int heuristic(int x1,  int y1,  int x2,  int y2);
 
-static void printPath(int parent[GRID_WIDTH][GRID_HEIGHT][2], int x, int y);
+static void printPath(Route *route, int parent[GRID_WIDTH][GRID_HEIGHT][2], int x, int y);
 
-int aStar(int start_x,  int start_y, int end_x, int end_y);
+RoutingResult aStar(int start_x,  int start_y, int end_x, int end_y);
 
 void initializeGrid(const Map *map);
 

@@ -57,16 +57,16 @@ int heuristic(const int x1, const int y1, const int x2, const int y2) {
     return abs(x1 - x2) + abs(y1 - y2);
 }
 
-static void printPath(int parent[GRID_WIDTH][GRID_HEIGHT][2], int x, int y) {
+static void printPath(Route *route, int parent[GRID_WIDTH][GRID_HEIGHT][2], int x, int y) {
     if (parent[x][y][0] == -1 && parent[x][y][1] == -1) {
-        printf("(%d, %d) ", x, y);
+        route->locations[route->size++] = (Location){x, y};
         return;
     }
-    printPath(parent, parent[x][y][0], parent[x][y][1]);
-    printf("-> (%d, %d) ", x, y);
+    printPath(route, parent, parent[x][y][0], parent[x][y][1]);
+    route->locations[route->size++] = (Location){x, y};
 }
 
-int aStar(const int start_x, const int start_y, const int end_x, const int end_y) {
+RoutingResult aStar(const int start_x, const int start_y, const int end_x, const int end_y) {
     int dist[GRID_WIDTH][GRID_HEIGHT];
     int parent[GRID_WIDTH][GRID_HEIGHT][2];
     for (int i = 0; i < GRID_WIDTH; i++) {
@@ -82,16 +82,21 @@ int aStar(const int start_x, const int start_y, const int end_x, const int end_y
 
     dist[start_x][start_y] = 0;
     push(&pq, start_x, start_y, 0, heuristic(start_x, start_y, end_x, end_y));
-
+    int pathTaken = 0;
     while (!isEmpty(&pq)) {
         PriorityQueueNode current = pop(&pq);
         int x = current.x, y = current.y;
 
         if (x == end_x && y == end_y) {
-            printf("Shortest path: ");
-            printPath(parent, x, y);
-            printf("\n");
-            return dist[x][y];
+            Route route;
+            route.size = 0;
+            route.locations = (Location*)malloc((pathTaken)* sizeof(Location));
+            printPath(&route, parent, x, y);
+            RoutingResult result;
+            result.cost = dist[x][y];
+            result.route = route;
+            result.pathTaken = pathTaken;
+            return result;
         }
 
         for (int i = 0; i < grid[x][y].edgeCount; i++) {
@@ -104,9 +109,9 @@ int aStar(const int start_x, const int start_y, const int end_x, const int end_y
                 push(&pq, edge.x, edge.y, newCost, newCost + heuristic(edge.x, edge.y, end_x, end_y));
             }
         }
-
+        pathTaken++;
     }
-    return -1;
+    return (RoutingResult){-1, NULL, -1, -1};
 }
 
 // Revised function to add edges between nodes
