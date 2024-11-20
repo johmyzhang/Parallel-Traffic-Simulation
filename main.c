@@ -20,7 +20,7 @@ int main() {
     RoutingResult result = aStar(v->current.x, v->current.y, v->destination.x, v->destination.y);
     printf("Start: (%d, %d)\n", v->current.x, v->current.y);
     printf("Destination: (%d, %d)\n", v->destination.x, v->destination.y);
-    for (int i = 0; i < result.pathTaken; i++) {
+    for (int i = 0; i < result.route.size; i++) {
         printf("(%d, %d) ", result.route.locations[i].x, result.route.locations[i].y);
     }
     const int MAX_STEP = 1000;

@@ -90,7 +90,7 @@ RoutingResult aStar(const int start_x, const int start_y, const int end_x, const
         if (x == end_x && y == end_y) {
             Route route;
             route.size = 0;
-            route.locations = (Location*)malloc((pathTaken)* sizeof(Location));
+            route.locations = (Location*)malloc(route.size* sizeof(Location));
             printPath(&route, parent, x, y);
             RoutingResult result;
             result.cost = dist[x][y];
