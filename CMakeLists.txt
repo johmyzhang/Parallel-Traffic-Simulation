@@ -7,7 +7,7 @@ include_directories(.)
 
 add_executable(Parallel_Traffic_Simulation
     entity.h
-    map.c
+        main.c
         route.h
         route.c
         globals.h

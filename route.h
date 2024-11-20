@@ -4,15 +4,28 @@
 
 #ifndef ROUTE_H
 #define ROUTE_H
+#include <stdbool.h>
 
 typedef struct {
     int x, y, weight;
 } Edge;
 
+typedef struct VehicleNode{
+    Vehicle data;
+    struct VehicleNode* next;
+} VehicleNode;
+
+typedef struct {
+    VehicleNode* head;
+    VehicleNode* tail;
+    int size;
+} VehicleQueue;
+
 typedef struct {
     Edge edges[4]; // Maximum 4 neighbors (up, down, left, right)
     int edgeCount;
     int volume;
+    VehicleQueue q;
 } Node;
 
 typedef struct {
@@ -43,5 +56,17 @@ void initializeGrid(const Map *map);
 void addEdge(Node *node, int x, int y, int weight);
 
 void initializeVehicles(Vehicle *vehicles);
+
+void initVehicleQueue(VehicleQueue* queue);
+
+bool isVehicleQueueEmpty(VehicleQueue* queue);
+
+void enqueue(VehicleQueue* queue, Vehicle vehicle);
+
+void dequeue(VehicleQueue* queue);
+
+Vehicle peek(VehicleQueue* queue);
+
+void deleteQueue(VehicleQueue* queue);
 
 #endif

@@ -7,6 +7,7 @@
 #include "entity.h"
 #include "route.h"
 
+#include <assert.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -65,7 +66,7 @@ static void printPath(int parent[GRID_WIDTH][GRID_HEIGHT][2], int x, int y) {
     printf("-> (%d, %d) ", x, y);
 }
 
-int aStar(const int start_x, const int start_y, int end_x, int end_y) {
+int aStar(const int start_x, const int start_y, const int end_x, const int end_y) {
     int dist[GRID_WIDTH][GRID_HEIGHT];
     int parent[GRID_WIDTH][GRID_HEIGHT][2];
     for (int i = 0; i < GRID_WIDTH; i++) {
@@ -95,7 +96,7 @@ int aStar(const int start_x, const int start_y, int end_x, int end_y) {
 
         for (int i = 0; i < grid[x][y].edgeCount; i++) {
             Edge edge = grid[x][y].edges[i];
-            int newCost = dist[x][y] + edge.weight + grid[edge.x][edge.y].volume;
+            int newCost = dist[x][y] + edge.weight + grid[edge.x][edge.y].q.size;
             if (newCost < dist[edge.x][edge.y]) {
                 parent[edge.x][edge.y][0] = x; // Update parent
                 parent[edge.x][edge.y][1] = y;
@@ -122,6 +123,7 @@ void initializeGrid(const Map *map) {
         for (int j = 0; j < GRID_HEIGHT; j++) {
             grid[i][j].edgeCount = 0;
             grid[i][j].volume = 0;
+            initVehicleQueue(&grid[i][j].q);
         }
     }
 
@@ -167,7 +169,7 @@ void initializeVehicles(Vehicle *vehicles) {
             vehicles[i].current.x = rand() % 30;
             vehicles[i].current.y = rand() % 30;
         } while (grid[vehicles[i].current.x][vehicles[i].current.y].edgeCount == 0);
-        grid[vehicles[i].current.x][vehicles[i].current.y].volume++;
+
         // Ensure destination is also randomly chosen but different from the starting point
         do {
             vehicles[i].destination.x = rand() % GRID_WIDTH;
@@ -175,9 +177,78 @@ void initializeVehicles(Vehicle *vehicles) {
         } while ((vehicles[i].destination.x == vehicles[i].current.x && vehicles[i].destination.y == vehicles[i].current.y) ||
                  grid[vehicles[i].destination.x][vehicles[i].destination.y].edgeCount == 0);
 
+        enqueue(&grid[vehicles[i].current.x][vehicles[i].current.y].q, vehicles[i]);
         // Print initial vehicle information
         // printf("Vehicle %d starts at (%d, %d) and wants to reach (%d, %d)\n",
         //        vehicles[i].id, vehicles[i].current.x, vehicles[i].current.y,
         //        vehicles[i].destination.x, vehicles[i].destination.y);
     }
+}
+
+void initVehicleQueue(VehicleQueue* queue) {
+    assert(queue);
+    queue->head = NULL;
+    queue->tail = NULL;
+    queue->size = 0;
+}
+
+bool isVehicleQueueEmpty(VehicleQueue* queue) {
+    assert(queue);
+    return queue->head == NULL && queue->tail == NULL;
+}
+
+
+void enqueue(VehicleQueue* queue, Vehicle vehicle) {
+    assert(queue);
+    VehicleNode *node = (VehicleNode*) malloc(sizeof(VehicleNode));
+    if (node == NULL) {
+        perror("Memory allocation error\n");
+        exit(1);
+    }
+    node->data = vehicle;
+    node->next = NULL;
+    if (isVehicleQueueEmpty(queue)) {
+        queue->head = node;
+        queue->tail = node;
+    } else {
+        queue->tail->next = node;
+    }
+    queue->size++;
+}
+
+void dequeue(VehicleQueue* queue) {
+    assert(queue);
+    assert(!isVehicleQueueEmpty(queue));
+
+    if (queue->head == queue->tail) {
+        free(queue->head);
+        queue->head = queue->tail = NULL;
+    } else {
+        VehicleNode *node = queue->head->next;
+        free(queue->head);
+        queue->head = node;
+    }
+
+    --queue->size;
+}
+
+Vehicle peek(VehicleQueue* queue) {
+    assert(queue);
+    assert(!isVehicleQueueEmpty(queue));
+    return queue->head->data;
+}
+
+void deleteQueue(VehicleQueue* queue) {
+    assert(queue);
+    assert(!isVehicleQueueEmpty(queue));
+
+    VehicleNode *node = queue->head;
+
+    while (node) {
+        VehicleNode *next = node->next;
+        free(queue->head);
+        node = next;
+    }
+    queue->head = queue->tail = NULL;
+    queue->size = 0;
 }
