@@ -117,7 +117,7 @@ PathResult aStar(int start_x, int start_y, int end_x, int end_y, int rows, int c
             int edge_y = edge.y;
 
             // Skip if the node is occupied or is the excluded node
-            if (grid[edge_x][edge_y].capacity == grid[edge_x][edge_y].volume || (exclude_x >= 0 && edge_x == exclude_x && edge_y == exclude_y)) {
+            if (exclude_x >= 0 && edge_x == exclude_x && edge_y == exclude_y) {
                 continue;
             }
 

@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <_string.h>
+#include <string.h>
 
 #include "entity.h"
 #include "route.h"
@@ -176,9 +176,20 @@ int main() {
                                 movedInStep = 1;
                                 waitingTime[i] = 0; // Reset waiting time
                             } else {
-                                // Cannot move, wait
-                                fprintf(logFile, "Step %d: Vehicle %d cannot move to (%d, %d), occupied after rerouting\n",
-                                        step, v->id, next_x, next_y);
+                                // The next node is occupied
+                                waitingTime[i]++;
+
+                                if (waitingTime[i] > DEADLOCK_THRESHOLD) {
+                                    // Try to find an alternative path that avoids the blocked node
+                                    PathResult newPathResult = aStar(v->current.x, v->current.y, v->destination.x, v->destination.y,
+                                                                    GRID_WIDTH, GRID_HEIGHT, next_x, next_y);
+                                    // Proceed as before
+                                } else {
+                                    // Wait and try again in the next time step
+                                    fprintf(logFile, "Step %d: Vehicle %d is waiting at (%d, %d)\n",
+                                            step, v->id, v->current.x, v->current.y);
+                                }
+                            
                             }
                         } else {
                             // Cannot find alternative path, wait
