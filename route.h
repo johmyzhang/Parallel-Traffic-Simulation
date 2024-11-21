@@ -48,6 +48,7 @@ typedef struct {
     int cost;
 } RoutingResult;
 
+
 static void initializePriorityQueue(PriorityQueue* pq);
 
 static void push(PriorityQueue* pq, int x, int y, int cost, int priority);
