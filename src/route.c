@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <math.h>
 #include <limits.h>
-#include "entity.h"
-#include "route.h"
+#include "../include/entity.h"
+#include "../include/route.h"
 
 #include <assert.h>
 #include <stdlib.h>

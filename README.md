@@ -1,4 +1,11 @@
 # Parallel-Traffic-Simulation
 
-To Compile: mpicc -o traffic traffic.c\ 
-To Run: mpirun -np 4 ./traffic
+Compile: 
+```SHELL
+cmake . 
+```
+Run:
+```SHELL
+cd CMakeFiles
+mpirun -np 4 mpi_program
+```

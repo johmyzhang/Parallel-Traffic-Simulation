@@ -1,15 +1,15 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <mpi.h>
-#include <time.h>
-#include "entity.h"
-#include "route.h"
+#include </usr/local/Cellar/open-mpi/5.0.6/include/mpi.h>
+#include "../include/entity.h"
+#include "../include/route.h"
+#include "../include/log.h"
 
 Node grid[GRID_WIDTH][GRID_HEIGHT];
 
 int main(int argc, char *argv[]) {
+    log_set_level(LOG_INFO);
     MPI_Init(&argc, &argv);
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -30,21 +30,21 @@ int main(int argc, char *argv[]) {
     srand(seed + rank);
 
     // Calculate vehicles per process
-    int base_vehicles = NUM_VEHICLES / size;
-    int extra = NUM_VEHICLES % size;
-    int local_vehicle_count = base_vehicles + (rank < extra ? 1 : 0);
-    int start_vehicle = rank * base_vehicles + (rank < extra ? rank : extra);
+    const int base_vehicles = NUM_VEHICLES / size;
+    const int extra = NUM_VEHICLES % size;
+    const int local_vehicle_count = base_vehicles + (rank < extra ? 1 : 0);
+    const int start_vehicle = rank * base_vehicles + (rank < extra ? rank : extra);
 
     // Create vehicles array
     Vehicle* local_vehicles = malloc(local_vehicle_count * sizeof(Vehicle));
     if (!local_vehicles) {
-        fprintf(stderr, "Process %d: Failed to allocate memory for local vehicles\n", rank);
+        log_error("Process %d: Failed to allocate memory for local vehicles\n", rank);
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
     // Initialize vehicles on all processes
     for (int i = 0; i < local_vehicle_count; i++) {
-        int vehicle_id = start_vehicle + i;
+        const int vehicle_id = start_vehicle + i;
         local_vehicles[i].id = vehicle_id;
         
         // Generate valid starting position
@@ -60,8 +60,7 @@ int main(int argc, char *argv[]) {
         } while (grid[local_vehicles[i].destination.x][local_vehicles[i].destination.y].edgeCount == 0 ||
                 (local_vehicles[i].destination.x == local_vehicles[i].current.x &&
                  local_vehicles[i].destination.y == local_vehicles[i].current.y));
-
-        printf("Process %d: Vehicle %d starts at (%d, %d) and wants to reach (%d, %d)\n",
+        log_debug("Process %d: Vehicle %d starts at (%d, %d) and wants to reach (%d, %d)\n",
                rank, vehicle_id, local_vehicles[i].current.x, local_vehicles[i].current.y,
                local_vehicles[i].destination.x, local_vehicles[i].destination.y);
     }
@@ -87,10 +86,11 @@ int main(int argc, char *argv[]) {
     int step = 0;
     int local_vehicle_remaining = local_vehicle_count;
     int total_vehicles_remaining;
-    
+
+    const double start = MPI_Wtime();
+
     while (step < MAX_STEP) {
         int moved = 0;
-        
         // Process local vehicles
         for (int i = 0; i < GRID_WIDTH; i++) {
             for (int j = 0; j < GRID_HEIGHT; j++) {
@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
                 // Check if arrived
                 if (v.destination.x == i && v.destination.y == j) {
                     local_vehicle_remaining--;
-                    printf("Process %d: Vehicle %d arrived at (%d, %d)\n", 
+                    log_debug("Process %d: Vehicle %d arrived at (%d, %d)\n",
                            rank, v.id, i, j);
                     continue;
                 }
@@ -132,8 +132,7 @@ int main(int argc, char *argv[]) {
                         enqueue(&currentNode->q, v);
                     }
                 } else {
-                    printf("Process %d: Vehicle %d blocked at (%d, %d)\n", 
-                           rank, v.id, i, j);
+                    log_debug("Process %d: Vehicle %d blocked at (%d, %d)\n", rank, v.id, i, j);
                     enqueue(&currentNode->q, v);
                 }
                 
@@ -152,7 +151,7 @@ int main(int argc, char *argv[]) {
         MPI_Allreduce(&moved, &global_moved, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
         if (global_moved == 0) {
-            if (rank == 0) printf("No vehicle moved in step %d\n", step);
+            if (rank == 0) log_debug("No vehicle moved in step %d\n", step);
             if (step > MAX_STEP - 1000) break;
         }
 
@@ -163,13 +162,18 @@ int main(int argc, char *argv[]) {
         step++;
         MPI_Barrier(MPI_COMM_WORLD);
     }
+    const double end = MPI_Wtime();
+    if (rank == 0) {
+        log_info("Average step time: %f\n", (end-start)/step);
+    }
+
 
     // Final report
     if (rank == 0) {
         if (step >= MAX_STEP) {
-            printf("Max steps reached. %d vehicles remaining.\n", total_vehicles_remaining);
+            log_info("Max steps reached. %d vehicles remaining.\n", total_vehicles_remaining);
         } else {
-            printf("%d steps used for routing %d vehicles\n", step, NUM_VEHICLES);
+            log_info("%d steps used for routing %d vehicles\n", step, NUM_VEHICLES);
         }
     }
 
