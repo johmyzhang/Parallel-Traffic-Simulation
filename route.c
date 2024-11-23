@@ -8,6 +8,7 @@
 #include "route.h"
 
 #include <assert.h>
+#include <log.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -90,7 +91,7 @@ RoutingResult aStar(const int start_x, const int start_y, const int end_x, const
         if (x == end_x && y == end_y) {
             Route route;
             route.size = 0;
-            route.locations = (Location*)malloc(route.size* sizeof(Location));
+            route.locations = (Location*)malloc((pathTaken + 1)* sizeof(Location));
             printPath(&route, parent, x, y);
             RoutingResult result;
             result.cost = dist[x][y];
@@ -184,9 +185,9 @@ void initializeVehicles(Vehicle *vehicles) {
 
         enqueue(&grid[vehicles[i].current.x][vehicles[i].current.y].q, vehicles[i]);
         // Print initial vehicle information
-        // printf("Vehicle %d starts at (%d, %d) and wants to reach (%d, %d)\n",
-        //        vehicles[i].id, vehicles[i].current.x, vehicles[i].current.y,
-        //        vehicles[i].destination.x, vehicles[i].destination.y);
+        log_debug("Vehicle %d starts at (%d, %d) and wants to reach (%d, %d)\n",
+               vehicles[i].id, vehicles[i].current.x, vehicles[i].current.y,
+               vehicles[i].destination.x, vehicles[i].destination.y);
     }
 }
 
@@ -205,36 +206,38 @@ bool isVehicleQueueEmpty(VehicleQueue* queue) {
 
 void enqueue(VehicleQueue* queue, Vehicle vehicle) {
     assert(queue);
-    VehicleNode *node = (VehicleNode*) malloc(sizeof(VehicleNode));
-    if (node == NULL) {
+    VehicleNode *newNode = (VehicleNode*) malloc(sizeof(VehicleNode));
+    if (newNode == NULL) {
         perror("Memory allocation error\n");
         exit(1);
     }
-    node->data = vehicle;
-    node->next = NULL;
+    newNode->data = vehicle;
+    newNode->next = NULL;
     if (isVehicleQueueEmpty(queue)) {
-        queue->head = node;
-        queue->tail = node;
+        queue->head = queue->tail = newNode;
     } else {
-        queue->tail->next = node;
+        queue->tail->next = newNode;
+        queue->tail = queue->tail->next;
     }
     queue->size++;
 }
 
-void dequeue(VehicleQueue* queue) {
+int dequeue(VehicleQueue* queue) {
     assert(queue);
     assert(!isVehicleQueueEmpty(queue));
-
+    const int vid = peek(queue).id;
     if (queue->head == queue->tail) {
         free(queue->head);
         queue->head = queue->tail = NULL;
     } else {
-        VehicleNode *node = queue->head->next;
+        VehicleNode *newNode = queue->head->next;
         free(queue->head);
-        queue->head = node;
+        queue->head = newNode;
     }
 
-    --queue->size;
+    queue->size--;
+
+    return vid;
 }
 
 Vehicle peek(VehicleQueue* queue) {

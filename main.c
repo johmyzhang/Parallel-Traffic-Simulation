@@ -1,15 +1,15 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "entity.h"
 #include "route.h"
+#include "log.h"
 
 Node grid[GRID_WIDTH][GRID_HEIGHT];
 
 int main() {
-
+    log_set_level(LOG_INFO);
     Map map;
     initMap(&map);
 
@@ -23,6 +23,8 @@ int main() {
     const int MAX_STEP = 10000;
     int step = 0;
     int vehicleCount = NUM_VEHICLES;
+    struct timespec start, end;
+    if( clock_gettime( CLOCK_REALTIME, &start) == -1 ) { perror( "clock gettime" );}
     while (step < MAX_STEP && vehicleCount > 0) {
         int moved = 0;
         for (int i = 0; i < GRID_WIDTH; i++) {
@@ -37,7 +39,7 @@ int main() {
                 // Arrived
                 if (v->destination.x == i && v->destination.y == j) {
                     vehicleCount--;
-                    printf("Vehicle %d arrived at (%d, %d)\n", v->id, i, j);
+                    log_debug("Vehicle %d arrived at (%d, %d)\n", v->id, i, j);
                     continue;
                 }
 
@@ -51,13 +53,16 @@ int main() {
                 moved = 1;
             }
         }
-        if (moved == 0) printf("No vehicle moved in step %d\n", step);
+        if (moved == 0) log_debug("No vehicle moved in step %d\n", step);
         step++;
     }
+    if( clock_gettime( CLOCK_REALTIME, &end) == -1 ) { perror( "clock gettime" );}
+    const double time = (end.tv_sec - start.tv_sec)+ (end.tv_nsec - start.tv_nsec)/1e9;
+    log_info("Average step time: %f", time/step);
     if (vehicleCount > 0) {
-        printf("Max number of steps reached.");
+        log_debug("Max number of steps reached.");
     } else {
-        printf("%d steps used for routing %d vehicles", step, NUM_VEHICLES);
+        log_debug("%d steps used for routing %d vehicles", step, NUM_VEHICLES);
     }
     return 0;
 }
