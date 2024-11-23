@@ -8,6 +8,7 @@
 #include "route.h"
 
 #include <assert.h>
+#include <log.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -184,7 +185,7 @@ void initializeVehicles(Vehicle *vehicles) {
 
         enqueue(&grid[vehicles[i].current.x][vehicles[i].current.y].q, vehicles[i]);
         // Print initial vehicle information
-        printf("Vehicle %d starts at (%d, %d) and wants to reach (%d, %d)\n",
+        log_debug("Vehicle %d starts at (%d, %d) and wants to reach (%d, %d)\n",
                vehicles[i].id, vehicles[i].current.x, vehicles[i].current.y,
                vehicles[i].destination.x, vehicles[i].destination.y);
     }

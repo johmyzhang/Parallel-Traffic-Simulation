@@ -12,4 +12,6 @@ add_executable(Parallel_Traffic_Simulation
         route.c
         globals.h
         entity.c
+        log.c
+        log.h
 )
