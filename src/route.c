@@ -13,7 +13,61 @@
 
 #define INF INT_MAX
 
-extern Node grid[GRID_WIDTH][GRID_HEIGHT];
+Node grid[GRID_WIDTH][GRID_HEIGHT];
+
+// Made static to limit linkage to this translation unit
+static int getEdgeCount(Map* map, int x, int y) {
+    // Same implementation as in main.c
+    for (int i = 0; i < map->numRoads; i++) {
+        Road road = map->roads[i];
+        int start_x = road.beginX;
+        int start_y = road.beginY;
+        int end_x = road.endX;
+        int end_y = road.endY;
+
+        // Adjust to ensure start <= end
+        if (start_x > end_x) {
+            int temp = start_x;
+            start_x = end_x;
+            end_x = temp;
+        }
+        if (start_y > end_y) {
+            int temp = start_y;
+            start_y = end_y;
+            end_y = temp;
+        }
+
+        if (start_x == end_x) {
+            // Vertical road
+            if (x == start_x && y >= start_y && y <= end_y) {
+                return 1; // Node is on a road
+            }
+        } else if (start_y == end_y) {
+            // Horizontal road
+            if (y == start_y && x >= start_x && x <= end_x) {
+                return 1; // Node is on a road
+            }
+        }
+    }
+    return 0; // Node is not on a road
+}
+
+// Function to get edges from the map at a given position
+int getEdgesFromMap(Map* map, int x, int y, Edge edges[]) {
+    int edgeCount = 0;
+    // Check possible movements (up, down, left, right)
+    int dirs[4][2] = {{0,1},{1,0},{0,-1},{-1,0}};
+    for (int d = 0; d < 4; d++) {
+        int nx = x + dirs[d][0];
+        int ny = y + dirs[d][1];
+        if (nx >= 0 && nx < GRID_WIDTH && ny >= 0 && ny < GRID_HEIGHT) {
+            if (getEdgeCount(map, nx, ny)) {
+                edges[edgeCount++] = (Edge){nx, ny, 1};
+            }
+        }
+    }
+    return edgeCount;
+}
 
 static void initializePriorityQueue(PriorityQueue* pq) {
     pq->size = 0;
@@ -66,13 +120,14 @@ static void printPath(Route *route, int parent[GRID_WIDTH][GRID_HEIGHT][2], int 
     route->locations[route->size++] = (Location){x, y};
 }
 
-RoutingResult aStar(const int start_x, const int start_y, const int end_x, const int end_y) {
+RoutingResult aStar(Map* map, const int start_x, const int start_y, const int end_x, const int end_y) {
     int dist[GRID_WIDTH][GRID_HEIGHT];
     int parent[GRID_WIDTH][GRID_HEIGHT][2];
+    int visited[GRID_WIDTH][GRID_HEIGHT] = {0};
     for (int i = 0; i < GRID_WIDTH; i++) {
         for (int j = 0; j < GRID_HEIGHT; j++) {
             dist[i][j] = INF;
-            parent[i][j][0] = -1; // Initialize parent to (-1, -1)
+            parent[i][j][0] = -1;
             parent[i][j][1] = -1;
         }
     }
@@ -82,37 +137,46 @@ RoutingResult aStar(const int start_x, const int start_y, const int end_x, const
 
     dist[start_x][start_y] = 0;
     push(&pq, start_x, start_y, 0, heuristic(start_x, start_y, end_x, end_y));
-    int pathTaken = 0;
+
     while (!isEmpty(&pq)) {
         PriorityQueueNode current = pop(&pq);
         int x = current.x, y = current.y;
 
+        if (visited[x][y]) continue;
+        visited[x][y] = 1;
+
         if (x == end_x && y == end_y) {
             Route route;
             route.size = 0;
-            route.locations = (Location*)malloc((pathTaken + 1)* sizeof(Location));
+            route.locations = (Location*)malloc((dist[x][y] + 1) * sizeof(Location));
             printPath(&route, parent, x, y);
             RoutingResult result;
             result.cost = dist[x][y];
             result.route = route;
-            result.pathTaken = pathTaken;
+            result.pathTaken = dist[x][y];
             return result;
         }
 
-        for (int i = 0; i < grid[x][y].edgeCount; i++) {
-            Edge edge = grid[x][y].edges[i];
-            int newCost = dist[x][y] + edge.weight + grid[edge.x][edge.y].q.size;
+        // Get neighbors from the map
+        Edge edges[4];
+        int edgeCount = getEdgesFromMap(map, x, y, edges);
+
+        for (int i = 0; i < edgeCount; i++) {
+            Edge edge = edges[i];
+            int newCost = dist[x][y] + edge.weight;
             if (newCost < dist[edge.x][edge.y]) {
-                parent[edge.x][edge.y][0] = x; // Update parent
+                parent[edge.x][edge.y][0] = x;
                 parent[edge.x][edge.y][1] = y;
                 dist[edge.x][edge.y] = newCost;
                 push(&pq, edge.x, edge.y, newCost, newCost + heuristic(edge.x, edge.y, end_x, end_y));
             }
         }
-        pathTaken++;
     }
-    return (RoutingResult){-1, NULL, -1, -1};
+    // No path found
+    Route emptyRoute = {0, NULL};
+    return (RoutingResult){emptyRoute, -1, -1};
 }
+
 
 // Revised function to add edges between nodes
 void addEdge(Node *node, int x, int y, int weight) {
@@ -259,3 +323,6 @@ void deleteQueue(VehicleQueue* queue) {
     queue->head = queue->tail = NULL;
     queue->size = 0;
 }
+
+
+

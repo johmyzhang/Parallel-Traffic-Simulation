@@ -61,7 +61,7 @@ int heuristic(int x1,  int y1,  int x2,  int y2);
 
 static void printPath(Route *route, int parent[GRID_WIDTH][GRID_HEIGHT][2], int x, int y);
 
-RoutingResult aStar(int start_x,  int start_y, int end_x, int end_y);
+RoutingResult aStar(Map* map, int start_x, int start_y, int end_x, int end_y);
 
 void initializeGrid(const Map *map);
 

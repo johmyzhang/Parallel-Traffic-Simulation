@@ -99,7 +99,7 @@ void initRoad(Road *road, int id, int beginX, int endX, int beginY, int endY, in
     road->endY = endY;
     road->capacity = capacity;
     road->directed = directed;
-    road->length = beginX - endX == 0 ? beginY - endY : beginX - endX;
+    road->length = abs(beginX - endX) + abs(beginY - endY);
 }
 
 void initMap(Map *map) {
