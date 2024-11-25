@@ -102,7 +102,7 @@ RoutingResult aStar(const int start_x, const int start_y, const int end_x, const
 
         for (int i = 0; i < grid[x][y].edgeCount; i++) {
             Edge edge = grid[x][y].edges[i];
-            int newCost = dist[x][y] + edge.weight + grid[edge.x][edge.y].q.size;
+            int newCost = dist[x][y] + edge.weight + grid[edge.x][edge.y].volume;
             if (newCost < dist[edge.x][edge.y]) {
                 parent[edge.x][edge.y][0] = x; // Update parent
                 parent[edge.x][edge.y][1] = y;
@@ -183,11 +183,11 @@ void initializeVehicles(Vehicle *vehicles) {
         } while ((vehicles[i].destination.x == vehicles[i].current.x && vehicles[i].destination.y == vehicles[i].current.y) ||
                  grid[vehicles[i].destination.x][vehicles[i].destination.y].edgeCount == 0);
 
-        enqueue(&grid[vehicles[i].current.x][vehicles[i].current.y].q, vehicles[i]);
+        // enqueue(&grid[vehicles[i].current.x][vehicles[i].current.y].q, vehicles[i]);
         // Print initial vehicle information
-        log_debug("Vehicle %d starts at (%d, %d) and wants to reach (%d, %d)\n",
-               vehicles[i].id, vehicles[i].current.x, vehicles[i].current.y,
-               vehicles[i].destination.x, vehicles[i].destination.y);
+        // log_debug("Vehicle %d starts at (%d, %d) and wants to reach (%d, %d)\n",
+        //        vehicles[i].id, vehicles[i].current.x, vehicles[i].current.y,
+        //        vehicles[i].destination.x, vehicles[i].destination.y);
     }
 }
 
@@ -211,6 +211,7 @@ void enqueue(VehicleQueue* queue, Vehicle vehicle) {
         perror("Memory allocation error\n");
         exit(1);
     }
+    // assert((vehicle.current.x > GRID_HEIGHT) || (vehicle.current.y > GRID_WIDTH));
     newNode->data = vehicle;
     newNode->next = NULL;
     if (isVehicleQueueEmpty(queue)) {
