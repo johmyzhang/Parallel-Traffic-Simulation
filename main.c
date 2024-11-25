@@ -74,9 +74,6 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-    int k = 0;
-    while (!k)
-        sleep(5);
     while (step < MAX_STEP && vehicleCount > 0) {
         // int hasVehicle = 0;
         int numArrived = 0;
