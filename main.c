@@ -27,7 +27,8 @@ int main(int argc, char *argv[]) {
     initMap(&map);
     // Map is no longer needed after grid is initialized.
     initializeGrid(&map);
-
+    int areaWidth = GRID_WIDTH/size;
+    int startAt = rank * areaWidth;
     Vehicle *vehicles = (Vehicle *)malloc(sizeof(Vehicle) * NUM_VEHICLES);
 
     // Calculate communication buffer size
@@ -35,16 +36,13 @@ int main(int argc, char *argv[]) {
     int *buffer = (int*) malloc(bufferSize*sizeof(int));
     if (rank == 0) {
         // Vehicle array is shared using buffer. By this time vehicles are not in the grid.
-        initializeVehicles(vehicles);
+        initializeVehicles(vehicles, startAt, areaWidth);
         serializeVehicleArray(vehicles, buffer, NUM_VEHICLES);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
 
     MPI_Bcast(buffer, bufferSize, MPI_BYTE, 0, MPI_COMM_WORLD);
-    // int k = 0;
-    // while(!k)
-    //     sleep(5);
     deserializeVehicles(vehicles, buffer, NUM_VEHICLES);
     free(buffer);
     buffer = NULL;
@@ -60,9 +58,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Assign areas
-    int areaWidth = GRID_WIDTH/size;
-    int startAt = rank * areaWidth;
-    int MAX_STEP = 1000;
+    int MAX_STEP = 200;
     int step = 0;
     int vehicleCount = NUM_VEHICLES;
     MPI_Barrier(MPI_COMM_WORLD);
@@ -75,15 +71,20 @@ int main(int argc, char *argv[]) {
         }
     }
     while (step < MAX_STEP && vehicleCount > 0) {
-        // int hasVehicle = 0;
+        int hasVehicle = 0;
         int numArrived = 0;
+        int numMoved = 0;
         int totalArrived = 0;
         int *vidToBeSent = (int*) malloc(sizeof(int) * areaWidth * size);
         for (int i = 0; i < areaWidth * size; i++) {
             vidToBeSent[i] = -1;
         }
+        int *vidToBeMoved = (int*) malloc(sizeof(int) * GRID_WIDTH * areaWidth);
+        for (int i = 0; i < areaWidth * GRID_WIDTH; i++) {
+            vidToBeMoved[i] = -1;
+        }
         int *numVehiclesToBeSent = (int*) malloc(sizeof(int) * size);
-         int vehicleBufferSize = 5 * sizeof(int);
+        int vehicleBufferSize = 5 * sizeof(int);
         for (int i = 0; i < GRID_WIDTH; i++) {
             for (int j = startAt; j < startAt + areaWidth; j++) {
                 Node *currentNode = &grid[i][j];
@@ -91,39 +92,47 @@ int main(int argc, char *argv[]) {
                 if (isVehicleQueueEmpty(&currentNode->q)) {
                     continue;
                 }
-                // hasVehicle = 1;
-
-                Vehicle *v = &vehicles[peek(&currentNode->q).id];
+                hasVehicle = 1;
+                Vehicle *v = &vehicles[dequeue(&currentNode->q)];
+                grid[i][j].volume = currentNode->q.size;
+                if (!(v->current.x == i && v->current.y == j)) {
+                    log_fatal("Process %d: Inconsistent location - Current(%d, %d), %d(%d, %d)", rank, i, j, v->current.x, v->current.y);
+                    assert(0);
+                }
                 // Arrived
                 if (v->destination.x == i && v->destination.y == j) {
                     numArrived++;
                     log_debug("Vehicle %d arrived at (%d, %d)\n", v->id, i, j);
-                    dequeue(&currentNode->q);
                     grid[i][j].volume = currentNode->q.size;
                     continue;
                 }
 
-                RoutingResult newRoute = aStar(v->current.x, v->current.y, v->destination.x, v->destination.y);
+                Location nextNode = aStar(v->current.x, v->current.y, v->destination.x, v->destination.y);
 
-                // Location newRoute.route.locations[2] = {};
-                // TODO: Check x or y
                 // Pass the vehicle to other process if destination is not within the area.
-                v->current.x = newRoute.route.locations[1].x;
-                v->current.y = newRoute.route.locations[1].y;
-                dequeue(&currentNode->q);
+                v->current.x = nextNode.x;
+                v->current.y = nextNode.y;
                 grid[i][j].volume = currentNode->q.size;
-                if (newRoute.route.locations[1].y > startAt + areaWidth || newRoute.route.locations[1].y < startAt) {
-                    int destProcess = newRoute.route.locations[1].y/areaWidth;
+                if (v->current.y > startAt + areaWidth - 1 || v->current.y < startAt) {
+                    int destProcess = nextNode.y/areaWidth;
                     vidToBeSent[destProcess * areaWidth + numVehiclesToBeSent[destProcess]] = v->id;
                     numVehiclesToBeSent[destProcess]++;
-
                 } else {
-                    enqueue(&grid[newRoute.route.locations[1].x][newRoute.route.locations[1].y].q, *v);
-                    grid[newRoute.route.locations[1].x][newRoute.route.locations[1].y].volume = grid[newRoute.route.locations[1].x][newRoute.route.locations[1].y].q.size;
+                    vidToBeMoved[numMoved++] = v->id;
                 }
             }
         }
+        if (!hasVehicle) {
+            log_debug("Process %d doesn't have vehicles", rank);
+        }
         MPI_Barrier(MPI_COMM_WORLD);
+        // Local movement
+        for (int i = 0; i < numMoved; i++) {
+            Vehicle *v = &vehicles[vidToBeMoved[i]];
+            // log_debug("Vehicle %d moving to (%d, %d)", v->id, v->current.x, v->current.y);
+            enqueue(&grid[v->current.x][v->current.y].q, *v);
+            grid[v->current.x][v->current.y].volume = grid[v->current.x][v->current.y].q.size;
+        }
         // Sync crossing border vehicles
         int *recvLength = (int*)malloc(sizeof(int) * size);
         MPI_Alltoall(numVehiclesToBeSent, 1, MPI_INT, recvLength, 1, MPI_INT, MPI_COMM_WORLD);
@@ -133,7 +142,6 @@ int main(int argc, char *argv[]) {
             totalRecvLength += recvLength[i];
         }
 
-        Vehicle *recvVehicles = (Vehicle *) malloc(totalRecvLength * vehicleBufferSize);
         Vehicle tempVehicle[totalRecvLength];
         for (int i = 0; i < size; i++) {
             if (rank != i) {
@@ -147,17 +155,21 @@ int main(int argc, char *argv[]) {
                     vehiclesToBeSent[j].current.y = vehicles[vidToBeSent[i * areaWidth + j]].current.y;
                     vehiclesToBeSent[j].destination.x = vehicles[vidToBeSent[i * areaWidth + j]].destination.x;
                     vehiclesToBeSent[j].destination.y = vehicles[vidToBeSent[i * areaWidth + j]].destination.y;
+
+                    log_debug("Process %d send v-%d(%d, %d) to Process %d", rank, vehiclesToBeSent[j].id, vehiclesToBeSent[j].current.x, vehiclesToBeSent[j].current.y, i);
                 }
 
-                int *syncBuffer = (int*) malloc(vehicleBufferSize * numVehiclesToBeSent[i] * sizeof(int));
-                serializeVehicleArray(vehiclesToBeSent, syncBuffer, numVehiclesToBeSent[i]);
-                MPI_Send(syncBuffer, vehicleBufferSize * numVehiclesToBeSent[i], MPI_INT, i, 0, MPI_COMM_WORLD);
-                free(syncBuffer);
+                int *sendingBuffer = (int*) malloc(vehicleBufferSize * numVehiclesToBeSent[i] * sizeof(int));
+                serializeVehicleArray(vehiclesToBeSent, sendingBuffer, numVehiclesToBeSent[i]);
+                MPI_Send(sendingBuffer, vehicleBufferSize * numVehiclesToBeSent[i], MPI_INT, i, 0, MPI_COMM_WORLD);
+                free(sendingBuffer);
                 free(vehiclesToBeSent);
-                syncBuffer = NULL;
+                sendingBuffer = NULL;
                 vehiclesToBeSent = NULL;
             } else {
                 int received = 0;
+                Vehicle *recvVehicles = (Vehicle *) malloc(totalRecvLength * vehicleBufferSize);
+                assert(recvVehicles != NULL);
                 for (int j = 0; j < size; j++) {
                     if (j == i || recvLength[j] == 0) {
                         continue;
@@ -167,14 +179,19 @@ int main(int argc, char *argv[]) {
 
                     deserializeVehicles(recvVehicles, syncBuffer, recvLength[j]);
                     for (int k = 0; k < recvLength[j]; k++) {
+                        if (recvLength[j] == 0) {
+                            continue;
+                        }
+                        log_debug("Process %d received v-%d(%d, %d) from Process %d", rank, recvVehicles[k].id, recvVehicles[k].current.x, recvVehicles[k].current.y, k);
                         tempVehicle[received] = recvVehicles[k];
                         received++;
                     }
-                    free(recvVehicles);
+
                     free(syncBuffer);
-                    recvVehicles = NULL;
                     syncBuffer = NULL;
                 }
+                free(recvVehicles);
+                recvVehicles = NULL;
             }
         }
         free(vidToBeSent);
@@ -183,7 +200,11 @@ int main(int argc, char *argv[]) {
         numVehiclesToBeSent = NULL;
 
         for (int i = 0; i < totalRecvLength; i++) {
+            // int k = 0;
+            // while(!k)
+            //     sleep(5);
             Vehicle *v = &tempVehicle[i];
+            vehicles[v->id] = *v;
             assert(grid[v->current.x][v->current.y].edgeCount != 0);
             enqueue(&grid[v->current.x][v->current.y].q, *v);
             grid[v->current.x][v->current.y].volume = grid[v->current.x][v->current.y].q.size;
@@ -232,4 +253,5 @@ int main(int argc, char *argv[]) {
     free(vehicles);
     vehicles = NULL;
     MPI_Finalize();
+    return 0;
 }

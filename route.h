@@ -60,13 +60,13 @@ int heuristic(int x1,  int y1,  int x2,  int y2);
 
 static void printPath(Route *route, int parent[GRID_WIDTH][GRID_HEIGHT][2], int x, int y);
 
-RoutingResult aStar(int start_x,  int start_y, int end_x, int end_y);
+Location aStar(int start_x,  int start_y, int end_x, int end_y);
 
 void initializeGrid(const Map *map);
 
 void addEdge(Node *node, int x, int y, int weight);
 
-void initializeVehicles(Vehicle *vehicles);
+void initializeVehicles(Vehicle *vehicles, int startAt, int areaWidth);
 
 void initVehicleQueue(VehicleQueue* queue);
 
