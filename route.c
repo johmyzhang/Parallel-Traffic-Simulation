@@ -58,16 +58,16 @@ int heuristic(const int x1, const int y1, const int x2, const int y2) {
     return abs(x1 - x2) + abs(y1 - y2);
 }
 
-static void printPath(Route *route, int parent[GRID_WIDTH][GRID_HEIGHT][2], int x, int y) {
-    if (parent[x][y][0] == -1 && parent[x][y][1] == -1) {
-        route->locations[route->size++] = (Location){x, y};
-        return;
-    }
-    printPath(route, parent, parent[x][y][0], parent[x][y][1]);
-    route->locations[route->size++] = (Location){x, y};
-}
+// static void printPath(Route *route, int parent[GRID_WIDTH][GRID_HEIGHT][2], int x, int y) {
+//     if (parent[x][y][0] == -1 && parent[x][y][1] == -1) {
+//         route->locations[route->size++] = (Location){x, y};
+//         return;
+//     }
+//     printPath(route, parent, parent[x][y][0], parent[x][y][1]);
+//     route->locations[route->size++] = (Location){x, y};
+// }
 
-RoutingResult aStar(const int start_x, const int start_y, const int end_x, const int end_y) {
+Location aStar(const int start_x, const int start_y, const int end_x, const int end_y) {
     int dist[GRID_WIDTH][GRID_HEIGHT];
     int parent[GRID_WIDTH][GRID_HEIGHT][2];
     for (int i = 0; i < GRID_WIDTH; i++) {
@@ -89,15 +89,19 @@ RoutingResult aStar(const int start_x, const int start_y, const int end_x, const
         int x = current.x, y = current.y;
 
         if (x == end_x && y == end_y) {
-            Route route;
-            route.size = 0;
-            route.locations = (Location*)malloc((pathTaken + 1)* sizeof(Location));
-            printPath(&route, parent, x, y);
-            RoutingResult result;
-            result.cost = dist[x][y];
-            result.route = route;
-            result.pathTaken = pathTaken;
-            return result;
+            int next_x = x;
+            int next_y = y;
+            for (int i = 0; i < pathTaken; i++) {
+                int temp_next_x = parent[next_x][next_y][0];
+                int temp_next_y = parent[next_x][next_y][1];
+                if (temp_next_x == start_x && temp_next_y == start_y) {
+                    return (Location){next_x, next_y};
+                }
+                next_x = temp_next_x;
+                next_y = temp_next_y;
+            }
+
+            return (Location){next_x, next_y};
         }
 
         for (int i = 0; i < grid[x][y].edgeCount; i++) {
@@ -112,7 +116,7 @@ RoutingResult aStar(const int start_x, const int start_y, const int end_x, const
         }
         pathTaken++;
     }
-    return (RoutingResult){-1, NULL, -1, -1};
+    return (Location){-1, -1};
 }
 
 // Revised function to add edges between nodes
@@ -165,15 +169,15 @@ void initializeGrid(const Map *map) {
 }
 
 // Function to create vehicles
-void initializeVehicles(Vehicle *vehicles) {
+void initializeVehicles(Vehicle *vehicles, int startAt, int areaWidth) {
     srand(time(NULL));
     for (int i = 0; i < NUM_VEHICLES; i++) {
         vehicles[i].id = i;
 
         // Ensure vehicles are placed randomly on the grid within valid road areas
         do {
-            vehicles[i].current.x = rand() % 30;
-            vehicles[i].current.y = rand() % 30;
+            vehicles[i].current.x = rand() % GRID_HEIGHT;
+            vehicles[i].current.y = rand() % (startAt + areaWidth);
         } while (grid[vehicles[i].current.x][vehicles[i].current.y].edgeCount == 0);
 
         // Ensure destination is also randomly chosen but different from the starting point
@@ -185,9 +189,9 @@ void initializeVehicles(Vehicle *vehicles) {
 
         // enqueue(&grid[vehicles[i].current.x][vehicles[i].current.y].q, vehicles[i]);
         // Print initial vehicle information
-        // log_debug("Vehicle %d starts at (%d, %d) and wants to reach (%d, %d)\n",
-        //        vehicles[i].id, vehicles[i].current.x, vehicles[i].current.y,
-        //        vehicles[i].destination.x, vehicles[i].destination.y);
+        log_debug("Vehicle %d starts at (%d, %d) and wants to reach (%d, %d)\n",
+               vehicles[i].id, vehicles[i].current.x, vehicles[i].current.y,
+               vehicles[i].destination.x, vehicles[i].destination.y);
     }
 }
 
