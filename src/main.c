@@ -1,6 +1,6 @@
 #include <assert.h>
 #include <stdlib.h>
-#include </usr/local/Cellar/open-mpi/5.0.6/include/mpi.h>
+#include <mpi.h>
 #include "entity.h"
 #include "route.h"
 #include "log.h"
@@ -16,7 +16,7 @@ Node grid[GRID_WIDTH][GRID_HEIGHT];
 
 int main(int argc, char *argv[]) {
 
-    log_set_level(LOG_DEBUG);
+    log_set_level(LOG_INFO);
 
     MPI_Init(&argc, &argv);
     int rank, size;
@@ -70,6 +70,8 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+    double start;
+    if (rank == 0) start = MPI_Wtime();
     while (step < MAX_STEP && vehicleCount > 0) {
         int hasVehicle = 0;
         int numArrived = 0;
@@ -244,6 +246,11 @@ int main(int argc, char *argv[]) {
         free(recvBuffer);
         gridSnapShot = NULL;
         recvBuffer = NULL;
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (rank == 0) {
+        double end  = MPI_Wtime();
+        log_info("Average stepping time: %f", (end-start)/step);
     }
     if (vehicleCount > 0) {
         log_debug("Max number of steps reached.");
