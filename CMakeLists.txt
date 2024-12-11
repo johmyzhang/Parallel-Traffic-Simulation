@@ -3,13 +3,13 @@ project(Parallel_Traffic_Simulation C)
 
 set(CMAKE_C_STANDARD 11)
 
-include_directories(.)
 
-add_executable(Parallel_Traffic_Simulation
-    entity.h
-    map.c
-        route.h
-        route.c
-        globals.h
-        entity.c
-)
+find_package(MPI REQUIRED)
+
+include_directories(${CMAKE_SOURCE_DIR}/include)
+
+file(GLOB SOURCES ${CMAKE_SOURCE_DIR}/src/*.c)
+
+add_executable(mpi_program ${SOURCES})
+
+target_link_libraries(mpi_program MPI::MPI_C)

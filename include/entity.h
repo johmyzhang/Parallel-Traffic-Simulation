@@ -6,7 +6,6 @@
 // Maps represented by a 2-D grid.
 
 typedef struct {
-    int id;
     int x;
     int y;
 } Location;
@@ -35,7 +34,6 @@ typedef struct {
     int id;
     Location current;
     Location destination;
-    Location* route;
 } Vehicle;
 
 void initRoad(Road *road, int id, int beginX, int endX, int beginY, int endY, int capacity, int directed);
@@ -47,5 +45,4 @@ void addRoad(Map *map, Road *road);
 void addLocation(Map *map, Location *location);
 
 void printMap(Map *map) ;
-
 #endif

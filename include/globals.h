@@ -7,6 +7,7 @@
 #include <limits.h>
 #define MAX_ROADS 100
 #define MAX_LOCATIONS 100
+#define NUM_VEHICLES 100
 
 #define GRID_WIDTH 100
 #define GRID_HEIGHT 100

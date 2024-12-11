@@ -5,7 +5,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "entity.h"
+#include <time.h>
 #include "globals.h"
+#include "route.h"
 
 // Maps represented by a 2-D grid.
 const int roads[100][100] = {
