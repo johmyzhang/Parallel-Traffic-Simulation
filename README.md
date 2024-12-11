@@ -13,7 +13,7 @@ make
 Run:
 ```SHELL
 cd CMakeFiles
-mpirun -np 4 mpi_program
+mpirun -np 2 mpi_program
 ```
 
 ## References:
